@@ -1,0 +1,39 @@
+#!/bin/bash
+
+### BEGIN INIT INFO
+# Provides:          cloud9
+# Required-Start:    $remote_fs $syslog
+# Required-Stop:     $remote_fs $syslog
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Simple script to start cloud9 at boot
+# Description:       A simple script which will start / stop cloud9 at boot / shutdown.
+### END INIT INFO
+
+# To install this script copy it to /etc/init.d/cloud9
+# Then sudo chmod 755 /etc/init.d/cloud9
+# Then sudo update-rc.d cloud9 defaults
+
+# If you want a command to always run, put it here
+
+# Carry out specific functions when asked to by the system
+case "$1" in
+  start)
+    # echo "Starting noip"
+    # run application you want to start
+    cd /home/pi/c9sdk
+    sudo -u pi ./server.js -s standalone-homedir -l 0.0.0.0 -a : &
+    echo "Launching cloud9 with workspace root set to /home/pi"
+    ;;
+  stop)
+    echo "Stopping cloud9"
+    # kill application you want to stop
+    pkill -f "node ./server.js"
+    ;;
+  *)
+    echo "Usage: /etc/init.d/cloud9 {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0

@@ -31,6 +31,7 @@ signal.signal(signal.SIGINT, signal_handler)
 import argparse
 
 parser = argparse.ArgumentParser(description='Send commands to LED color strip to show colors.')
+parser.add_argument('--clear', action='store_true', help='Clear all pixels.')
 parser.add_argument('--color', help='which color to show in the form ff00ff for RGB, i.e. ff0000 for all red')
 parser.add_argument('--rainbow', action='store_true', help='Draw rainbow that fades across all pixels at once.')
 parser.add_argument('--rainbowcycle', action='store_true', help='Draw rainbow that uniformly distributes itself across all pixels.')
@@ -247,6 +248,10 @@ if (args.rainbow):
     rainbow(strip)
     # rainbowCycle(strip)
     # theaterChaseRainbow(strip)
+elif (args.clear):
+    wipe(strip, Color(0,0,0))
+    strip.show()
+    time.sleep(0.1)
 elif (args.rainbowcycle):
     print("Showing rainbow that uniformly distributes itself across all pixels.")
     rainbowCycle(strip)

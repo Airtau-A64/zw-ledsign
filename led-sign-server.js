@@ -1,3 +1,5 @@
+#!/usr/bin/env node
+
 const http = require('http');
 var url = require('url');
 var path = require('path');
