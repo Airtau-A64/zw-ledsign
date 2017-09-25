@@ -36,6 +36,8 @@ parser.add_argument('--rainbow', action='store_true', help='Draw rainbow that fa
 parser.add_argument('--rainbowcycle', action='store_true', help='Draw rainbow that uniformly distributes itself across all pixels.')
 parser.add_argument('--rainbowchase', action='store_true', help='Rainbow movie theater light style chaser animation.')
 parser.add_argument('--seahawks', action='store_true', help='Show blue/green stripes across all pixels.')
+parser.add_argument('--zipwhip', action='store_true', help='Show Zipwhip pantone stripes across all pixels.')
+parser.add_argument('--mariners', action='store_true', help='Show Mariners pantone stripes across all pixels.')
 args = parser.parse_args()
 print(args)
 
@@ -54,6 +56,15 @@ def wipe(strip, color, wait_ms=50):
 	for i in range(strip.numPixels()):
 		strip.setPixelColor(i, color)
 	strip.show()
+
+def setRange(strip, color, pixStart, pixEnd):
+    for i in range(pixStart, pixEnd, 1):
+        strip.setPixelColor(i, color)
+        # print("setRange. i:", i, "color:", color)
+    i = pixEnd
+    strip.setPixelColor(i, color)
+    # print("setRange. i:", i, "color:", color)
+    # print("Done setRange")
 
 def colorWipe(strip, color, wait_ms=50):
 	"""Wipe color across display a pixel at a time."""
@@ -128,8 +139,98 @@ def seahawks(strip):
             isGreen = True
             
     strip.show()
-    time.sleep(10)
-		
+    time.sleep(9.5)
+    
+def zipwhip(strip):
+    stripes = 30 * 4
+    block = strip.numPixels() / stripes
+    print("Stripes:", stripes, "Blocks:", block)
+    isGreen = True
+    for j in range(stripes):
+        for i in range(j * block, (j * block) + block):
+            if isGreen:
+                # print("Pixel:G", "i:", i)
+                strip.setPixelColor(i, Color(0,221,255))
+            else:
+                # print("Pixel:B", "i:", i)
+                strip.setPixelColor(i, Color(251,113,63))
+        
+        # toggle green to blue        
+        if isGreen:
+            isGreen = False
+        else:
+            isGreen = True
+            
+    strip.show()
+    time.sleep(9.5)
+    
+def zipwhip(strip):
+    
+    delay = 0.8
+    wipe(strip, Color(0,221,255))
+    time.sleep(delay)
+    wipe(strip, Color(251,113,63))
+    time.sleep(delay)
+    wipe(strip, Color(0,221,255))
+    time.sleep(delay)
+    wipe(strip, Color(251,113,63))
+    time.sleep(delay)
+    wipe(strip, Color(0,221,255))
+    time.sleep(delay)
+    wipe(strip, Color(251,113,63))
+    time.sleep(delay)
+    wipe(strip, Color(0,221,255))
+    time.sleep(delay)
+    wipe(strip, Color(251,113,63))
+    time.sleep(delay)
+    wipe(strip, Color(0,221,255))
+    time.sleep(delay)
+    wipe(strip, Color(251,113,63))
+    time.sleep(delay)
+    
+def mariners(strip):
+    c1 = Color(0x0C, 0x2C, 0x56) # navy blue
+    c2 = Color(0, 0xEC, 0x5C) # northwest green
+    # c2 = Color(255,0,0)
+    lz = [0,30]
+    li = [31,45]
+    lp = [46,60]
+    lw = [61,75]
+    lh = [76,90]
+    li2 = [91,110]
+    lp2 = [111,144]
+    arr = [lz,li,lp,lw,lh,li2,lp2]
+    print("Array:", arr)
+    
+    delay = 0.85
+
+    for i in range(0,5):
+
+        setRange(strip, c1, lz[0], lz[1])
+        setRange(strip, c2, li[0], li[1])
+        setRange(strip, c1, lp[0], lp[1])
+        setRange(strip, c2, lw[0], lw[1])
+        setRange(strip, c1, lh[0], lh[1])
+        setRange(strip, c2, li2[0], li2[1])
+        setRange(strip, c1, lp2[0], lp2[1])
+        strip.show()
+        time.sleep(delay)
+    
+        setRange(strip, c2, lz[0], lz[1])
+        setRange(strip, c1, li[0], li[1])
+        setRange(strip, c2, lp[0], lp[1])
+        setRange(strip, c1, lw[0], lw[1])
+        setRange(strip, c2, lh[0], lh[1])
+        setRange(strip, c1, li2[0], li2[1])
+        setRange(strip, c2, lp2[0], lp2[1])
+        strip.show()
+        time.sleep(delay)
+    
+    # for i in range(0,7,1):
+    #     setRange(strip, c2, arr[i][0], arr[i][1])
+    #     strip.show()
+    #     time.sleep(delay)
+
 # Create NeoPixel object with appropriate configuration.
 strip = Adafruit_NeoPixel(LED_COUNT, LED_PIN, LED_FREQ_HZ, LED_DMA, LED_INVERT, LED_BRIGHTNESS, LED_CHANNEL, LED_STRIP)
 # Intialize the library (must be called once before other functions).
@@ -154,6 +255,10 @@ elif (args.rainbowchase):
     theaterChaseRainbow(strip)
 elif (args.seahawks):
     seahawks(strip)
+elif (args.zipwhip):
+    zipwhip(strip)
+elif (args.mariners):
+    mariners(strip)
 elif (args.color != None):
     print("Showing solid color")
     print "The Color is:", args.color
@@ -167,9 +272,11 @@ elif (args.color != None):
     b = int(blue, 16)
     print("r:", r, "g:", g, "b:", b)
     wipe(strip, Color(r, g, b))
-    time.sleep(10)
+    time.sleep(9.5)
 else:
     print("Nothing to do")
     
 print(time.strftime("%I:%M:%S %p"))
 wipe(strip, Color(0,0,0)) # sets all led's to black
+strip.show()
+time.sleep(0.1)

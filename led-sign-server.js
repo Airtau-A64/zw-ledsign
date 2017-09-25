@@ -4,33 +4,48 @@ var path = require('path');
 var fs = require('fs');
 var qs = require('querystring');
 var rpio = require('rpio');
-var ws281x = require('../node_modules/rpi-ws281x-native/index.js');
+const { exec } = require('child_process');
+// var ws281x = require('../node_modules/rpi-ws281x-native/index.js');
+
+// add timestamps in front of log messages
+require('console-stamp')(console, '[HH:MM:ss.l]');
 
 //const hostname = '10.0.0.241';
 const hostname = '127.0.0.1';
 //const port = 8081;
 const port = 80;
 
-// test save
+const pathToLedExe = "sudo /home/pi/zw-ledsign/send-to-leds.py"
+
+/** Keep track of whether LEDs are busy and if so return an error **/
+var isBusy = false;
+
+// var log = console.log;
+
+// console.log = function() {
+//   // log.call(console, Date.now());
+//   // log.apply(console, arguments);
+//   log.apply(console, [Date.now()].concat(arguments));
+// };
 
 /*
  * Setup LEDs
 */
-var NUM_LEDS = 144 * 1;
-var pixelData = new Uint32Array(NUM_LEDS);
+// var NUM_LEDS = 144 * 1;
+// var pixelData = new Uint32Array(NUM_LEDS);
 
-var OPTIONS = {
-  // frequency: 8000,  // Uint32Value symFreq = Nan::New<String>("frequency").ToLocalChecked(),
-  dmaNum : 10,      // Int32Value symDmaNum = Nan::New<String>("dmaNum").ToLocalChecked(),
-  gpioPin: 18,    // Int32Value symGpioPin = Nan::New<String>("gpioPin").ToLocalChecked(),
-  // invert: 0,     // Int32Value symInvert = Nan::New<String>("invert").ToLocalChecked(),
-  brightness: 255, // Int32Value symBrightness = Nan::New<String>("brightness").ToLocalChecked();
-}
-ws281x.init(NUM_LEDS, OPTIONS);
+// var OPTIONS = {
+//   // frequency: 8000,  // Uint32Value symFreq = Nan::New<String>("frequency").ToLocalChecked(),
+//   dmaNum : 10,      // Int32Value symDmaNum = Nan::New<String>("dmaNum").ToLocalChecked(),
+//   gpioPin: 18,    // Int32Value symGpioPin = Nan::New<String>("gpioPin").ToLocalChecked(),
+//   // invert: 0,     // Int32Value symInvert = Nan::New<String>("invert").ToLocalChecked(),
+//   brightness: 255, // Int32Value symBrightness = Nan::New<String>("brightness").ToLocalChecked();
+// }
+// ws281x.init(NUM_LEDS, OPTIONS);
 
 // ---- trap the SIGINT and reset before exit
 process.on('SIGINT', function () {
-  ws281x.reset();
+  // ws281x.reset();
   process.nextTick(function () { process.exit(0); });
 });
 
@@ -53,11 +68,35 @@ for (var indx in relayPinsPhysicalHdrLocations) {
 // }
 // rpio.open(12, rpio.OUTPUT, rpio.LOW);
 
+function whiteLedOff() {
+  console.log("Turning off white LEDs by turning relays on to cut power. ");
+    
+  for (var indx in relayPinsPhysicalHdrLocations) {
+    var pin = relayPinsPhysicalHdrLocations[indx];
+    // console.log("Setting header pin: " + pin + " to LOW state.");
+    rpio.write(pin, rpio.LOW);
+  }
+}
+
+function whiteLedOn() {
+  console.log("Turning on white LEDs by turning relays off so power flows freely. ");
+    
+  for (var indx in relayPinsPhysicalHdrLocations) {
+    var pin = relayPinsPhysicalHdrLocations[indx];
+    // console.log("Setting header pin: " + pin + " to HIGH state.");
+    rpio.write(pin, rpio.HIGH);
+  }
+}
+
 const server = http.createServer((req, res) => {
   
   var uri = url.parse(req.url).pathname;
-  console.log("URL being requested:", uri);
-
+  if (uri == "/favicon.ico") {
+    // ignore
+  } else {
+    console.log("URL being requested:", uri);
+  }
+  
   /*
   HOME PAGE
   */
@@ -122,6 +161,111 @@ const server = http.createServer((req, res) => {
       'Content-Type': 'application/json'
     });
     res.end(JSON.stringify(json));
+  }
+  
+  /** COLOR **/
+  else if (uri.startsWith("/color")) {
+    
+    var json = {};
+    
+    // see if busy, if so return error
+    
+    if (isBusy) {
+      json.success = false;
+      json.isbusy = true;
+      json.desc = "Busy with other user already sending color.";
+      
+      res.writeHead(200, {
+        'Content-Type': 'application/json'
+      });
+      res.end(JSON.stringify(json));
+      console.log("Was busy so returning");
+      return;
+    }
+    
+    // get color
+    if (uri.match(".*\/(.*)$")) {
+      
+      // we got a color
+      var color = RegExp.$1;
+      console.log("color:", color);
+      
+      json = {
+        success: true,
+        desc: "Turning on color on LEDs. Toggling white off first, then doing color, then toggling white on.",
+        color: color,
+        // log: stdout
+      }
+      
+      var arg = "";
+      
+      // see what kind of color
+      if (color.match("^([0-9a-f]{6,6})")) {
+        // we have an RGB color
+        var rgb = RegExp.$1;
+        
+        arg = "--color " + rgb;
+        
+      } else if (color == "seahawks") {
+        arg = "--seahawks";
+      } else if (color == "rainbow") {
+        arg = "--rainbow";
+      } else if (color == "unicorn") {
+        arg = "--rainbowcycle";
+      } else if (color == "chase") {
+        arg = "--rainbowchase";
+      } else if (color == "zipwhip") {
+        arg = "--zipwhip";
+      } else if (color == "mariners") {
+        arg = "--mariners";
+      } else {
+        json.success = false;
+        json.error = "Failed to set color correctly."
+      }
+      
+      json.arg = arg;
+      
+      // See if we have a successful command line to call
+      if (json.success) {
+        
+        // if we get here, we're not busy
+        // set that we are busy
+        isBusy = true;
+        
+        console.log("Turning on color LEDs. Setting isBusy to true");
+        
+        whiteLedOff();
+        
+        var fullPath = pathToLedExe + ' ' + arg;
+        console.log("Cmdline:", fullPath);
+        exec(fullPath);
+        setTimeout(function() {
+          whiteLedOn();
+          
+          // set the isBusy to false 500ms later just to soften relay hit
+          setTimeout(function() {
+            isBusy = false;
+            console.log("isBusy now false");
+          }, 500);
+          
+        }, 10 * 1000);
+
+      } else {
+        console.log("Error setting color");
+      }
+
+    } else {
+      json = {
+        success: false,
+        desc: "Never got a color",
+      }
+    }
+    
+    res.writeHead(200, {
+      'Content-Type': 'application/json'
+    });
+    res.end(JSON.stringify(json));
+    
   }
   
   /*
@@ -205,18 +349,18 @@ var offset = 0;
 
 // var hiliteColor = colorNameToInt('lightcyan');
 // var hiliteColor = colorNameToInt('lawngreen');
-var hiliteColor = 0x6666ff;
-setInterval(function () {
-  var i=NUM_LEDS;
-  while(i--) {
-      pixelData[i] = 0;
-  }
-  // pixelData[offset] = 0x00ffff;
-  pixelData[offset] = hiliteColor;
+// var hiliteColor = 0x6666ff;
+// setInterval(function () {
+//   var i=NUM_LEDS;
+//   while(i--) {
+//       pixelData[i] = 0;
+//   }
+//   // pixelData[offset] = 0x00ffff;
+//   pixelData[offset] = hiliteColor;
 
-  offset = (offset + 1) % NUM_LEDS;
-  ws281x.render(pixelData);
-}, 100);
+//   offset = (offset + 1) % NUM_LEDS;
+//   ws281x.render(pixelData);
+// }, 100);
 
 // ---- animation-loop for rainbow
 // var offset = 0;
