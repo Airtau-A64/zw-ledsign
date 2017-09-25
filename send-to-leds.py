@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+# You must run this as root so it has access to the GPIO ports
+
 import time
 
 from neopixel import *
@@ -16,6 +18,17 @@ LED_BRIGHTNESS = 255     # Set to 0 for darkest and 255 for brightest
 LED_INVERT     = False   # True to invert the signal (when using NPN transistor level shift)
 LED_CHANNEL    = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
 LED_STRIP      = ws.WS2811_STRIP_GRB   # Strip type and colour ordering
+
+# LED pixel index by letter Z I P W H I P
+lz = [0,30]
+li = [31,45]
+lp = [46,60]
+lw = [61,75]
+lh = [76,90]
+li2 = [91,110]
+lp2 = [111,144]
+arr = [lz,li,lp,lw,lh,li2,lp2]
+print("Array:", arr)
 
 import signal
 import sys
@@ -39,6 +52,7 @@ parser.add_argument('--rainbowchase', action='store_true', help='Rainbow movie t
 parser.add_argument('--seahawks', action='store_true', help='Show blue/green stripes across all pixels.')
 parser.add_argument('--zipwhip', action='store_true', help='Show Zipwhip pantone stripes across all pixels.')
 parser.add_argument('--mariners', action='store_true', help='Show Mariners pantone stripes across all pixels.')
+parser.add_argument('--test', action='store_true', help='Test the LED pixels by just doing a rainbow non-stop forever.')
 args = parser.parse_args()
 print(args)
 
@@ -193,15 +207,6 @@ def mariners(strip):
     c1 = Color(0x0C, 0x2C, 0x56) # navy blue
     c2 = Color(0, 0xEC, 0x5C) # northwest green
     # c2 = Color(255,0,0)
-    lz = [0,30]
-    li = [31,45]
-    lp = [46,60]
-    lw = [61,75]
-    lh = [76,90]
-    li2 = [91,110]
-    lp2 = [111,144]
-    arr = [lz,li,lp,lw,lh,li2,lp2]
-    print("Array:", arr)
     
     delay = 0.85
 
@@ -278,6 +283,9 @@ elif (args.color != None):
     print("r:", r, "g:", g, "b:", b)
     wipe(strip, Color(r, g, b))
     time.sleep(9.5)
+elif (args.test):
+    while(True):
+        rainbow(strip)
 else:
     print("Nothing to do")
     

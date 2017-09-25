@@ -52,7 +52,9 @@ process.on('SIGINT', function () {
 });
 
 
-
+/**
+ * SETUP RELAY PINS
+ */
 /*
  * Set the initial state of relays to low. This makes sure the relays are not powered on. They should only
  * be powered on when the white LEDs are turned off, which is the much lesser scenario.
@@ -69,6 +71,57 @@ for (var indx in relayPinsPhysicalHdrLocations) {
 //   var pin = relayPinsPhysicalHdrLocations[i];
 // }
 // rpio.open(12, rpio.OUTPUT, rpio.LOW);
+
+/**
+ * SETUP PHSYICAL TEST BUTTON ON GPIO PIN 11
+ */
+// Setup the debug test button. Read every 2 sec to see if we need to turn on the lights
+var pinTestSwitch = 11;
+rpio.open(pinTestSwitch, rpio.INPUT, rpio.PULL_DOWN);
+var val = 0;
+var lastVal = 0;
+var testIntervalPtr;
+var testIndex = 0;
+var testArr = ["rainbow", "unicorn", "zipwhip", "chase", "mariners", "seahawks", "ff0000", "00ff00", "0000ff"];
+setInterval(function() {
+  
+  // see if manual switch went high
+  val = rpio.read(pinTestSwitch);
+  
+  // console.log("pinTestSwitch: ", val);
+  if (val != lastVal) {
+    // we have ourselves a change in status
+    lastVal = val;
+    if (val == rpio.HIGH) {
+      
+      // Read 100 times to ensure they are all true
+      var isRealBtnPush = true;
+      for (var i = 0; i < 100; i++ ) {
+        if (rpio.read(pinTestSwitch) == rpio.LOW) isRealBtnPush = false;
+      }
+      if (isRealBtnPush) {
+        console.log("We want to start testing the LEDs");
+        
+        // just pretend we have somebody sending in test commands non-stop
+        doColor("/color/rainbow");
+        testIndex = 1;
+        testIntervalPtr = setInterval(function() {
+          console.log("Doing test injection");
+          doColor("/color/" + testArr[testIndex]);
+          // increment test array index
+          testIndex++;
+          if (testIndex > testArr.length - 1) testIndex = 0;
+        }, 14 * 1000);
+        
+      } else {
+        console.log("Failed to validate button is really pushed.");
+      }
+    } else {
+      console.log("We want to stop testing the LEDs");
+      clearInterval(testIntervalPtr);
+    }
+  }
+}, 2000);
 
 function whiteLedOff() {
   console.log("Turning off white LEDs by turning relays on to cut power. ");
@@ -88,6 +141,110 @@ function whiteLedOn() {
     // console.log("Setting header pin: " + pin + " to HIGH state.");
     rpio.write(pin, rpio.HIGH);
   }
+}
+
+/**
+ * This method actually processes the color name and sends it to the LEDs via
+ * command line script in Python.
+ */
+function doColor(uri) {
+
+  var json = {};
+  
+  // see if busy, if so return error
+  
+  if (isBusy) {
+    json.success = false;
+    json.isbusy = true;
+    json.desc = "Busy with other user already sending color.";
+    
+    // res.writeHead(200, {
+    //   'Content-Type': 'application/json'
+    // });
+    // res.end(JSON.stringify(json));
+    console.log("Was busy so returning");
+    return json;
+  }
+  
+  // get color
+  if (uri.match(".*\/(.*)$")) {
+    
+    // we got a color
+    var color = RegExp.$1;
+    console.log("color:", color);
+    
+    json = {
+      success: true,
+      desc: "Turning on color on LEDs. Toggling white off first, then doing color, then toggling white on.",
+      color: color,
+      // log: stdout
+    }
+    
+    var arg = "";
+    
+    // see what kind of color
+    if (color.match("^([0-9a-f]{6,6})")) {
+      // we have an RGB color
+      var rgb = RegExp.$1;
+      
+      arg = "--color " + rgb;
+      
+    } else if (color == "seahawks") {
+      arg = "--seahawks";
+    } else if (color == "rainbow") {
+      arg = "--rainbow";
+    } else if (color == "unicorn") {
+      arg = "--rainbowcycle";
+    } else if (color == "chase") {
+      arg = "--rainbowchase";
+    } else if (color == "zipwhip") {
+      arg = "--zipwhip";
+    } else if (color == "mariners") {
+      arg = "--mariners";
+    } else {
+      json.success = false;
+      json.error = "Failed to set color correctly."
+    }
+    
+    json.arg = arg;
+    
+    // See if we have a successful command line to call
+    if (json.success) {
+      
+      // if we get here, we're not busy
+      // set that we are busy
+      isBusy = true;
+      
+      console.log("Turning on color LEDs. Setting isBusy to true");
+      
+      whiteLedOff();
+      
+      var fullPath = pathToLedExe + ' ' + arg;
+      console.log("Cmdline:", fullPath);
+      exec(fullPath);
+      setTimeout(function() {
+        whiteLedOn();
+        
+        // set the isBusy to false 500ms later just to soften relay hit
+        setTimeout(function() {
+          isBusy = false;
+          console.log("isBusy now false");
+        }, 500);
+        
+      }, 10 * 1000);
+
+    } else {
+      console.log("Error setting color");
+    }
+
+  } else {
+    json = {
+      success: false,
+      desc: "Never got a color",
+    }
+  }
+  
+  return json;
 }
 
 const server = http.createServer((req, res) => {
@@ -168,100 +325,7 @@ const server = http.createServer((req, res) => {
   /** COLOR **/
   else if (uri.startsWith("/color")) {
     
-    var json = {};
-    
-    // see if busy, if so return error
-    
-    if (isBusy) {
-      json.success = false;
-      json.isbusy = true;
-      json.desc = "Busy with other user already sending color.";
-      
-      res.writeHead(200, {
-        'Content-Type': 'application/json'
-      });
-      res.end(JSON.stringify(json));
-      console.log("Was busy so returning");
-      return;
-    }
-    
-    // get color
-    if (uri.match(".*\/(.*)$")) {
-      
-      // we got a color
-      var color = RegExp.$1;
-      console.log("color:", color);
-      
-      json = {
-        success: true,
-        desc: "Turning on color on LEDs. Toggling white off first, then doing color, then toggling white on.",
-        color: color,
-        // log: stdout
-      }
-      
-      var arg = "";
-      
-      // see what kind of color
-      if (color.match("^([0-9a-f]{6,6})")) {
-        // we have an RGB color
-        var rgb = RegExp.$1;
-        
-        arg = "--color " + rgb;
-        
-      } else if (color == "seahawks") {
-        arg = "--seahawks";
-      } else if (color == "rainbow") {
-        arg = "--rainbow";
-      } else if (color == "unicorn") {
-        arg = "--rainbowcycle";
-      } else if (color == "chase") {
-        arg = "--rainbowchase";
-      } else if (color == "zipwhip") {
-        arg = "--zipwhip";
-      } else if (color == "mariners") {
-        arg = "--mariners";
-      } else {
-        json.success = false;
-        json.error = "Failed to set color correctly."
-      }
-      
-      json.arg = arg;
-      
-      // See if we have a successful command line to call
-      if (json.success) {
-        
-        // if we get here, we're not busy
-        // set that we are busy
-        isBusy = true;
-        
-        console.log("Turning on color LEDs. Setting isBusy to true");
-        
-        whiteLedOff();
-        
-        var fullPath = pathToLedExe + ' ' + arg;
-        console.log("Cmdline:", fullPath);
-        exec(fullPath);
-        setTimeout(function() {
-          whiteLedOn();
-          
-          // set the isBusy to false 500ms later just to soften relay hit
-          setTimeout(function() {
-            isBusy = false;
-            console.log("isBusy now false");
-          }, 500);
-          
-        }, 10 * 1000);
-
-      } else {
-        console.log("Error setting color");
-      }
-
-    } else {
-      json = {
-        success: false,
-        desc: "Never got a color",
-      }
-    }
+    doColor(uri);
     
     res.writeHead(200, {
       'Content-Type': 'application/json'
