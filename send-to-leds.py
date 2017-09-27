@@ -71,6 +71,24 @@ def wipe(strip, color, wait_ms=50):
 	for i in range(strip.numPixels()):
 		strip.setPixelColor(i, color)
 	strip.show()
+	
+def fadeFromBlackTo(strip, r, g, b, steps):
+    """Go black and then fade to color"""
+    # wipe(strip, Color(0,0,0)) # go to black
+    # figure out increment per step
+    incrementR = r / steps
+    incrementG = g / steps
+    incrementB = b / steps
+    currentColorR = 0
+    currentColorG = 0
+    currentColorB = 0
+    for i in range(steps):
+        wipe(strip, Color(currentColorR, currentColorG, currentColorB))
+        currentColorR = currentColorR + incrementR
+        currentColorG = currentColorG + incrementG
+        currentColorB = currentColorB + incrementB
+        strip.show()
+        # time.sleep(0.01)
 
 def setRange(strip, color, pixStart, pixEnd):
     for i in range(pixStart, pixEnd, 1):
@@ -156,7 +174,7 @@ def seahawks(strip):
     strip.show()
     time.sleep(9.5)
     
-def zipwhip(strip):
+def zipwhipOld(strip):
     stripes = 30 * 4
     block = strip.numPixels() / stripes
     print("Stripes:", stripes, "Blocks:", block)
@@ -181,26 +199,27 @@ def zipwhip(strip):
     
 def zipwhip(strip):
     
-    delay = 0.8
-    wipe(strip, Color(0,221,255))
+    delay = 0.28
+    for i in range(12):
+        wipe(strip, Color(0,221,255))
+        time.sleep(delay)
+        wipe(strip, Color(251,113,63))
+        time.sleep(delay)
+
+def zipwhipFade(strip):
+    
+    delay = 0.0001
+    fadeFromBlackTo(strip, 0,221,255, 4)
     time.sleep(delay)
-    wipe(strip, Color(251,113,63))
+    fadeFromBlackTo(strip, 251,113,63, 4)
     time.sleep(delay)
-    wipe(strip, Color(0,221,255))
+    fadeFromBlackTo(strip, 0,221,255, 4)
     time.sleep(delay)
-    wipe(strip, Color(251,113,63))
+    fadeFromBlackTo(strip, 251,113,63, 4)
     time.sleep(delay)
-    wipe(strip, Color(0,221,255))
+    fadeFromBlackTo(strip, 0,221,255, 4)
     time.sleep(delay)
-    wipe(strip, Color(251,113,63))
-    time.sleep(delay)
-    wipe(strip, Color(0,221,255))
-    time.sleep(delay)
-    wipe(strip, Color(251,113,63))
-    time.sleep(delay)
-    wipe(strip, Color(0,221,255))
-    time.sleep(delay)
-    wipe(strip, Color(251,113,63))
+    fadeFromBlackTo(strip, 251,113,63, 4)
     time.sleep(delay)
     
 def mariners(strip):
