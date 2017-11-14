@@ -20,13 +20,13 @@ LED_CHANNEL    = 0       # set to '1' for GPIOs 13, 19, 41, 45 or 53
 LED_STRIP      = ws.WS2811_STRIP_GRB   # Strip type and colour ordering
 
 # LED pixel index by letter Z I P W H I P
-lz = [0,30]
-li = [31,45]
-lp = [46,60]
-lw = [61,75]
-lh = [76,90]
-li2 = [91,110]
-lp2 = [111,144]
+lz = [0,538]
+li = [539,800]
+lp = [3001,3500]
+lw = [3501,4000]
+lh = [4001,4500]
+li2 = [4501,5000]
+lp2 = [5001,5500]
 arr = [lz,li,lp,lw,lh,li2,lp2]
 print("Array:", arr)
 
@@ -196,14 +196,18 @@ def zipwhipOld(strip):
             
     strip.show()
     time.sleep(9.5)
-    
+
 def zipwhip(strip):
+    # zipwhipFade(strip)
+    zipwhipSolid(strip)
+    
+def zipwhipSolid(strip):
     
     delay = 0.28
     for i in range(12):
         wipe(strip, Color(0,221,255))
         time.sleep(delay)
-        wipe(strip, Color(251,113,63))
+        wipe(strip, Color(251/3,113/3,63/3))
         time.sleep(delay)
 
 def zipwhipFade(strip):
