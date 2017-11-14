@@ -82,7 +82,7 @@ var val = 0;
 var lastVal = 0;
 var testIntervalPtr;
 var testIndex = 0;
-var testArr = ["rainbow", "unicorn", "zipwhip", "chase", "mariners", "seahawks", "ff0000", "00ff00", "0000ff"];
+var testArr = ["rainbow", "unicorn", "zipwhip", "chase", "mariners", "seahawks", "ff0000", "00ff00", "0000ff", "ffffff"];
 setInterval(function() {
   
   // see if manual switch went high
